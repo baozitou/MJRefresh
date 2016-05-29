@@ -133,6 +133,34 @@
     self.refreshingAction = action;
 }
 
+- (NSString *)localizedStringForKey:(NSString *)key{
+    return [self localizedStringForKey:key withDefault:nil];
+}
+
+- (NSString *)localizedStringForKey:(NSString *)key withDefault:(NSString *)defaultString
+{
+    static NSBundle *bundle = nil;
+    if (bundle == nil)
+    {
+        NSString *bundlePath = [[NSBundle mainBundle] pathForResource:@"MJRefresh" ofType:@"bundle"];
+        
+        bundle = [NSBundle bundleWithPath:bundlePath];
+        NSString *language = [[NSLocale preferredLanguages] count]? [NSLocale preferredLanguages][0]: @"en";
+        if (![[bundle localizations] containsObject:language])
+        {
+            language = [language componentsSeparatedByString:@"-"][0];
+        }
+        if ([[bundle localizations] containsObject:language])
+        {
+            bundlePath = [bundle pathForResource:language ofType:@"lproj"];
+        }
+
+        bundle = [NSBundle bundleWithPath:bundlePath] ?: [NSBundle mainBundle];
+    }
+    defaultString = [bundle localizedStringForKey:key value:defaultString table:nil];
+    return [[NSBundle mainBundle] localizedStringForKey:key value:defaultString table:nil];
+}
+
 #pragma mark 进入刷新状态
 - (void)beginRefreshing
 {
@@ -144,9 +172,12 @@
     if (self.window) {
         self.state = MJRefreshStateRefreshing;
     } else {
-        self.state = MJRefreshStateWillRefresh;
-        // 刷新(预防从另一个控制器回到这个控制器的情况，回来要重新刷新一下)
-        [self setNeedsDisplay];
+        // 预发当前正在刷新中时调用本方法使得header insert回置失败
+        if (self.state != MJRefreshStateRefreshing) {
+            self.state = MJRefreshStateWillRefresh;
+            // 刷新(预防从另一个控制器回到这个控制器的情况，回来要重新刷新一下)
+            [self setNeedsDisplay];
+        }
     }
 }
 
@@ -213,7 +244,7 @@
 @end
 
 @implementation UILabel(MJRefresh)
-+ (instancetype)label
++ (instancetype)mj_label
 {
     UILabel *label = [[self alloc] init];
     label.font = MJRefreshLabelFont;
